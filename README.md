@@ -125,7 +125,7 @@ The `auth_stack` claim contains a JSON object with the following fields:
     - Addresses concerns about token size and performance impact.
 
 - **`hash`**:
-  - A SHA256 checksum of the `container` value.
+  - A HMAC-SHA256 hash of the `container` value.
   - **Purpose:**
     - Ensures the integrity of the nested token.
     - Allows the receiving service to verify that the token has not been tampered with or corrupted.
