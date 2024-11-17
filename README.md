@@ -101,10 +101,11 @@ The **Auth Stack** is the chain of nested JWTs representing the sequence of serv
 
 ### Token Structure
 
-The `auth_token` claim contains a JSON object with the following fields:
+The `auth_stack` claim contains a JSON object with the following fields:
+
+#### Required Fields
 
 - **`fmt`** (Format):
-
   - Indicates the format of the token contained within the `container` field.
   - Possible values:
     - `"JWT"`: Standard JSON Web Token.
@@ -115,40 +116,45 @@ The `auth_token` claim contains a JSON object with the following fields:
     - If a service cannot decrypt the JWE, it processes as much of the auth stack as it can, maintaining security boundaries.
 
 - **`cmp`** (Compression):
-
   - Specifies the compression algorithm used on the token container.
   - Possible values:
-    - `"gzip"`
-    - `"deflate"`
+    - `"g"`: GZip
     - `null` or omitted if no compression is used.
   - **Purpose:**
     - Reduces the size of the nested tokens.
     - Addresses concerns about token size and performance impact.
 
 - **`hash`**:
-
   - A SHA256 checksum of the `container` value.
   - **Purpose:**
     - Ensures the integrity of the nested token.
     - Allows the receiving service to verify that the token has not been tampered with or corrupted.
 
 - **`container`**:
-
-  - Contains the actual nested token (JWT or JWE), which itself may have an `auth_token` claim.
+  - Contains the actual nested token (JWT or JWE), which itself may have an `auth_stack` claim.
+  - If `cmp` is specified, contents will be a base64-encoded representation of the actual nested token (JWT or JWE), and will need to be decompressed first.
   - **Purpose:**
     - Holds the previous JWT/JWE in the call chain.
-    - By recursively including the `auth_token` in each token, the call stack is built.
+    - By recursively including the `auth_stack` in each token, the call stack is built.
+
+#### Optional Fields
+- **`depth`**:
+  - Indicates the current `auth_stack` depth at the current point.
+  - **Purpose:**:
+    - Explicitly states the `auth_stack` depth at the given point
+    - This is an optional, informational field for Services to provide to downstream consumers who lack access to decrypt the `auth_stack` token secured with JWE
+    - Because this can potentially reveal information about your organizations service architecture and topography, it is not recommended for use beyond debugging
 
 ### Preventing Recursion
 
 To prevent recursion and circular dependencies:
 
 - **Call Chain Inspection:**
-  - Each service inspects the `auth_token` chain to identify if it has already been called in the current request flow.
+  - Each service inspects the `auth_stack` chain to identify if it has already been called in the current request flow.
   - If the service's identifier appears in the call chain, it can abort the call to prevent recursion.
 
 - **Maximum Call Depth:**
-  - Services can enforce a maximum call depth by checking the length of the `auth_token` chain.
+  - Services can enforce a maximum call depth by checking the length of the `auth_stack` chain.
   - If the call depth exceeds a predefined limit, the service can deny the request to prevent excessive recursion.
 
 - **Unique Identifiers:**
@@ -162,7 +168,7 @@ To prevent recursion and circular dependencies:
 - **Compression:**
 
   - **Purpose:** Reduce token size to improve performance.
-  - **Methods:** Use algorithms like gzip or deflate.
+  - **Methods:** Use algorithms like gzip.
   - **Implementation:** Compressed tokens are base64-encoded and indicated by the `cmp` field.
 
 - **Encryption (JWE):**
@@ -178,7 +184,8 @@ To prevent recursion and circular dependencies:
 ### Prerequisites
 
 - **Technology Stack:**
-  - .NET 7 or later (for prototype implementation).
+  - Modern Web Frameworks capable of processing JWT and JWE Tokens
+  - .NET 8 or later (for example prototype implementation).
   - Familiarity with JWT, JWE, and microservices architectures.
 
 - **Infrastructure:**
@@ -190,7 +197,7 @@ To prevent recursion and circular dependencies:
 - **Create Initial Token:**
 
   - Service generates a JWT with standard claims and any necessary custom claims.
-  - No `auth_token` claim is included if it's the initial token.
+  - No `auth_stack` claim is included if it's the initial token.
 
 - **Nesting Tokens:**
 
@@ -200,7 +207,7 @@ To prevent recursion and circular dependencies:
 
 - **Metadata Inclusion:**
 
-  - Include necessary metadata in the `auth_token` claim fields (`fmt`, `cmp`, `hash`).
+  - Include necessary metadata in the `auth_stack` claim fields (`fmt`, `cmp`, `hash`).
 
 ### Token Processing
 
@@ -211,7 +218,7 @@ To prevent recursion and circular dependencies:
 
 - **Extracting the Auth Stack:**
 
-  - Parse the `auth_token` claim to retrieve the nested token.
+  - Parse the `auth_stack` claim to retrieve the nested token.
   - Decompress and decrypt the `container` as indicated by the `cmp` and `fmt` fields.
   - Recursively process nested tokens to build the full call chain.
 
@@ -231,12 +238,12 @@ To prevent recursion and circular dependencies:
 - **Automated Processing:**
 
   - Implement middleware components to automate token processing.
-  - Middleware handles extraction, validation, and parsing of the `auth_token` claim.
+  - Middleware handles extraction, validation, and parsing of the `auth_stack` claim.
 
 - **Integration with Frameworks:**
 
   - Extend existing authentication and authorization frameworks to support the pattern.
-  - Ensure compatibility with existing services by ignoring the `auth_token` claim if not implemented.
+  - Ensure compatibility with existing services by ignoring the `auth_stack` claim if not implemented.
 
 ---
 
