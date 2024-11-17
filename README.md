@@ -118,7 +118,8 @@ The `auth_stack` claim contains a JSON object with the following fields:
 - **`cmp`** (Compression):
   - Specifies the compression algorithm used on the token container.
   - Possible values:
-    - `"g"`: GZip compression has been used on the `container`
+    - `"g"`: GZip compression (Good)
+    - `"b"`: Brotli compression (Better)
     - `null` or omitted if no compression is used.
   - **Purpose:**
     - Reduces the size of the nested tokens.
@@ -184,16 +185,16 @@ Implementation of compression is only recommended in order to maintain compatibi
 size of the uncompressed token increases, the added compute overhead will negate any performance offsets in transmission times. The below table shows simulated examples of compression ratios for 
 JWT tokens implementing the Matryoshka pattern at given depths:
 
-|Depth|Uncompressed Size (Encoded JWT)|Compressed Size (GZip+Base64)|Result|
+|Depth|Uncompressed Size|GZip+Base64|Brotli+Base64
 |--|--|--|--|
-|1|529|572|1.08x
-|2|1163|1132|0.97x
-|3|1903|1884|0.99x
-|4|2965|2768|0.93x
-|5|4288|3944|0.91x
-|6|6105|5496|0.88x
-|7|8528|7452|0.87x
-|8|11759|10076|0.85x
+|1|529|572 (1.08x)|556 (1.05x)
+|2|1163|1132 (0.97x)|1120 (0.96x)
+|3|1903|1884 (0.99x)|1868 (0.98x)
+|4|2965|2768 (0.93x)|2748 (0.92x)
+|5|4288|3944 (0.91x)|3957 (0.92x)
+|6|6105|5496 (0.90x)|5468 (0.89x)
+|7|8528|7452 (0.87x)|7256 (0.85x)
+|8|11759|10076 (0.85x)|9604 (0.81x)
 
 Note: Enabling HTTP Compression on your applciation endpoint will not compress the JWT Token, as HTTP compression only appplies to the payload body and not the headers.
 
@@ -394,6 +395,7 @@ In the above example, we're now three layers deep in our call stack (`Client` ->
 
   - May not be compatible with all JWT libraries or tools.
   - Custom parsing logic may be necessary.
+  - Default Maximum Header Sizes within Nginx is 8k
 
 - **Performance Impact:**
 
