@@ -123,7 +123,9 @@ The `auth_stack` claim contains a JSON object with the following fields:
   - **Purpose:**
     - Reduces the size of the nested tokens.
     - Addresses concerns about token size and performance impact.
-
+    - Compression is only recommended to help alleviate any compatibility issues with applications handling large HTTP header values
+    - Because the compressed results are Base64 encoded, only `auth_stack` containers with 3 or more entries should be compressed as shorter entries could result in a longer result than the uncompressed value
+   
 - **`hash`**:
   - A HMAC-SHA256 hash of the `container` value.
   - **Purpose:**
@@ -177,6 +179,23 @@ To prevent recursion and circular dependencies:
   - **Purpose:** Reduce token size to improve performance.
   - **Methods:** Use algorithms like gzip.
   - **Implementation:** Compressed tokens are base64-encoded and indicated by the `cmp` field.
+ 
+Implementation of compression is only recommended in order to maintain compatibility with applications that run into issues with large HTTP headers. While the compression ratio increases as the 
+size of the uncompressed token increases, the added compute overhead will negate any performance offsets in transmission times. The below table shows simulated examples of compression ratios for 
+JWT tokens implementing the Matryoshka pattern at given depths:
+
+|Depth|Uncompressed Size (Encoded JWT)|Compressed Size (GZip+Base64)|Compression|
+|--|--|--|--|
+|1|529|572|1.08x
+|2|1163|1132|0.97x
+|3|1903|1884|0.99x
+|4|2965|2768|0.93x
+|5|4288|3944|0.91x
+|6|6105|5496|0.88x
+|7|8528|7452|0.87x
+|8|11759|10076|0.85x
+
+Note: Enabling HTTP Compression on your applciation endpoint will not compress the JWT Token, as HTTP compression only appplies to the payload body and not the headers.
 
 - **Encryption (JWE):**
 
@@ -184,6 +203,62 @@ To prevent recursion and circular dependencies:
   - **Methods:** Use JSON Web Encryption standards.
   - **Implementation:** Encrypted tokens are indicated by the `fmt` field set to `JWE`.
 
+---
+
+## Examples
+
+(All examples use the shared secret `example` for their HMAC-SHA256 signatures and hash)
+
+### Simple JWT with One nested Token
+
+JWT:
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJhdXRoX3N0YWNrIjp7ImZtdCI6Imp3dCIsImhhc2giOiI0MGJhMTk4ODg3YzIyM2I4YmIzYzY1MTg3ZDYxMDgwMjFiMDQ4MjAyNWYxOTMyMzVhMjk3Yjk3MzVhMGNmMDE5IiwiZGVwdGgiOjEsImNvbnRhaW5lciI6ImV5SmhiR2NpT2lKSVV6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUp6ZFdJaU9pSXhNak0wTlRZM09Ea3dJaXdpYm1GdFpTSTZJa3B2YUc0Z1JHOWxJaXdpYVdGMElqb3hOVEUyTWpNNU1ESXlmUS5pVUNST0h0NkpIQU5kdHpUNmFPdVVnT3FWRlJhbE9XMjBTYnpSc241U2tJIn19.ud_wwYeKCxj5AW5sRSopMBT2h-oZCnqT-BfLlgjHlmQ
+```
+
+JSON:
+```json
+{
+  "sub": "1234567890",
+  "name": "John Doe",
+  "iat": 1516239022,
+  "auth_stack": {
+    "fmt": "jwt",
+    "hash": "40ba198887c223b8bb3c65187d6108021b0482025f193235a297b9735a0cf019",
+    "sid": "Organization.Services.ServiceA"
+    "depth": 1,
+    "container": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.iUCROHt6JHANdtzT6aOuUgOqVFRalOW20SbzRsn5SkI" 
+   }
+}
+```
+
+In the above example, a client (`Client1`) has called `ServiceA` which has then generated a JWT token to send to a downstream service (`ServiceB`), implementing the Matryoshka JWT Pattern by embedding the original JWT token from `Client1` in the `auth_stack` claim.
+
+### JWT with three nested JWT tokens, implementing compression
+
+JWT:
+```
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIzLCJhdXRoX3N0YWNrIjp7ImZtdCI6Imp3dCIsImNtcCI6ImciLCJoYXNoIjoiZWU4OGJiNjc1M2QyMjViY2U5NWRiYmNmNjMzN2NhZDNmNzgyMThjZmI1NjMxMzY0OGNhMDQ0M2NiYjZjMjYyOSIsInNpZCI6Ik9yZ2FuaXphdGlvbi5TZXJ2aWNlcy5TZXJ2aWNlQyIsImRlcHRoIjozLCJjb250YWluZXIiOiJINHNJQUFBQUFBQUFBMVZTeVphYk9CVDlvdVFBTnBYMnNsMGdESTdrc3RDRWRtSklBWkpzWE1iRjhQVXRWM0s2VDYra045OTczMnVXckMyVHFqdDFXVXJYMUVkZGVrOHZPS3hlMDVkVUQ0SzlacnZ2elpLdE5VOWRVanJESG5xSUZKdFRwS2UwbTdyU2dsSG1YOG1mS3RtKzQyUm5ubjdGZ1pmMjF4bVJPSEExSVl6UzllZHIxdFlDWDhVR2VRVkhIMmsvL0VpdEhPdm5NRHRzM0h0UExScS9odHVxYy9uWFFxQ3I2OU5KRGowWXdma1VJWXZzMlplUnRDZ3BKdFMvYjArY0xvZ3pMUWxjQ3lKYjJOTVpCZWxjckhwR050NGdJZzFhWlNjVDZxR0l6akQ2ZXlsNHVwWFBlUmMweUMreXUwVUc0S0hFME5hSitTeTdrRWlSQllvalV5My8vYzlQZ1N3MjFRRS9jUzBPWTE4R29lTmpIbEk4TmNwTVE0ZHJvZXRlMGQyUWE4TWFyV2RpVFZaNTVrRjcxcDg5SGVSOG5EaVFVZDVyVjJlT2pjVWk1K1pOVWJNbGZFQXdEaWtuNkEwbjQ4YjVONHBuSTc1Z1JmL1UxaFljVUZMbmVEWDMzM0VnY0wvUGxOMXRpY0VBYXY5R0NFTTROaThrUmtlVjRJTGFYUUc5N2NSWmZhcTB1VlZSblpWczhHU01NcVROV0VWSW56Mno1dHkvcWdRNlBaNTQ5RVJvZlZTeFQ5V0tIWjVxNVdMSUd1b3RPY0d5cE9iRjJSSlNuOG9WS1F3Y2Zvb3Z0ZWZmc0RVSWc5aHpmUFlORFFVWDdSdUwvWkNJZ2J0K043VWlxZXg5L1dNZmlQVWRYdXIvNWdPWE1obWZmQVlXb1dOcGpFQmliMHBhVEFXcndwck9kMkxudmpURHhFbkdHLzEvKzZ6TlVBZEdZVjl1WkZ4ZjNDNXVXS0NzcEdGUTJEQlhDUkNJejI1SFR6MTlqaGdhVldKeXFNT0pSZGs5OTkxRjlaS3dXTDRWak4wYmc0VExPVEV2ZEFpeHltMjhubzNoeWd0L0VoLzZaY0pZRlVtRkxUNFdqSVlWUUlXS3cxYXQrdzFMNXB4cmJ6cFIxc0xnR1c5MUJjd0lhYTN4WlUvLzdkZG5rbkU0OFI0YzgzZ25tbmhvZVlMZHZxVEduZy9LQStoZzREVFVqRFVNaXlvT1Q0d0FRUDMyWGpKR25EN2NqU1lzMmwvZC9YeFVzY0dNc0E4WnQ1UHpqOWpzTlRQeTRmUk1tTzg0MnJiRHhCUnVQNjhNbUlmRDNNUCtQRE9TZWU1dUg1RG9SOE5aU25QUE8ydDBsbjdzRllibEpXQjNUa0hHb2pweG5BQTNBNnBqZkNWSnV5Mk52TEZBYjNtZTdYNmR2KzgranAvTllxdXNlZTlQY042a2EzNVozci85QlE2aVNOOVoxRGF2MTdSc3Y4MHZ4VC9NWDNVSWl3UUFBQT09In19.DQRSDDZG2CUBNDwQxpaz79SFf2dDeGaUyw8HN9Aaqw4
+```
+
+JSON:
+```json
+{
+  "sub": "1234567890",
+  "name": "John Doe",
+  "iat": 1516239023,
+  "auth_stack": {
+    "fmt": "jwt",
+    "cmp": "g",
+    "hash": "ee88bb6753d225bce95dbbcf6337cad3f78218cfb56313648ca0443cbb6c2629",
+    "sid": "Organization.Services.ServiceC",
+    "depth": 3,
+    "container": "H4sIAAAAAAAAA1VSyZabOBT9ouQANpX2sl0gDI7kstCEdmJIAZJsXMbF8PUtV3K6T6+kN99732uWrC2Tqjt1WUrX1Eddek8vOKxe05dUD4K9ZrvvzZKtNU9dUjrDHnqIFJtTpKe0m7rSglHmX8mfKtm+42Rnnn7FgZf21xmROHA1IYzS9edr1tYCX8UGeQVHH2k//EitHOvnMDts3HtPLRq/htuqc/nXQqCr69NJDj0YwfkUIYvs2ZeRtCgpJtS/b0+cLogzLQlcCyJb2NMZBelcrHpGNt4gIg1aZScT6qGIzjD6eyl4upXPeRc0yC+yu0UG4KHE0NaJ+Sy7kEiRBYojUy3//c9PgSw21QE/cS0OY18GoeNjHlI8NcpMQ4droete0d2Qa8MarWdiTVZ55kF71p89HeR8nDiQUd5rV2eOjcUi5+ZNUbMlfEAwDikn6A0n48b5N4pnI75gRf/U1hYcUFLneDX333EgcL/PlN1ticEAav9GCEM4Ni8kRkeV4ILaXQG97cRZfaq0uVVRnZVs8GSMMqTNWEVInz2z5ty/qgQ6PZ549ERofVSxT9WKHZ5q5WLIGuotOcGypObF2RJSn8oVKQwcfoovteffsDUIg9hzfPYNDQUX7RuL/ZCIgbt+N7Uiqex9/WMfiPUdXur/5gOXMhmffAYWoWNpjEBib0paTAWrwprOd2LnvjTDxEnGG/1/+6zNUAdGYV9uZFxf3C5uWKCspGFQ2DBXCRCIz25HTz19jhgaVWJyqMOJRdk9991F9ZKwWL4VjN0bg4TLOTEvdAixym28no3hygt/Eh/6ZcJYFUmFLT4WjIYVQIWKw1at+w1L5pxrbzpR1sLgGW91BcwIaa3xZU//7ddnknE48R4c83gnmnhoeYLdvqTGng/KA+hg4DTUjDUMiyoOT4wAQP32XjJGnD7cjSYs2l/d/XxUscGMsA8Zt5Pzj9jsNTPy4fRMmO842rbDxBRuP68MmIfD3MP+PDOSee5uH5DoR8NZSnPPO2t0ln7sFYblJWB3TkHGojpxnAA3A6pjfCVJuy2NvLFAb3me7X6dv+8+jp/NYqusee9PcN6ka35Z3r/9BQ6iSN9Z1Dav17Rsv80vxT/MX3UIiwQAAA==" 
+   }
+}
+```
+
+In the above example, we're now three layers deep in our call stack (`Client` -> `ServiceA` -> `ServiceB` -> `ServiceC`), and the above token has been generated by `ServiceC` to make calls further down the stack. The `container` property in the `auth_stack` payload has been compressed using the specified GZip compression and Base64 encoded.
 ---
 
 ## Implementation Guidelines
