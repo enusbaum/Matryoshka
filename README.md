@@ -118,7 +118,7 @@ The `auth_stack` claim contains a JSON object with the following fields:
 - **`cmp`** (Compression):
   - Specifies the compression algorithm used on the token container.
   - Possible values:
-    - `"g"`: GZip
+    - `"g"`: GZip compression has been used on the `container`
     - `null` or omitted if no compression is used.
   - **Purpose:**
     - Reduces the size of the nested tokens.
@@ -138,6 +138,13 @@ The `auth_stack` claim contains a JSON object with the following fields:
     - By recursively including the `auth_stack` in each token, the call stack is built.
 
 #### Optional Fields
+- **`sid`** (Service ID):
+  - Specifies the Service ID of the service that signed the current parent JWT, and is the top of the stack for the `auth_stack`
+  - This can be an internal organizational identifier or a human readable namespace
+  - **Purpose**:
+    - Allows identification of services that are part of the `auth_stack`
+    - Can be used to restrict access to services if a service in the chain is not permitted (crossing permissions boundaries)
+
 - **`depth`**:
   - Indicates the current `auth_stack` depth at the current point.
   - **Purpose:**:
