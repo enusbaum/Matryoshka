@@ -126,12 +126,6 @@ The `auth_stack` claim contains a JSON object with the following fields:
     - Addresses concerns about token size and performance impact.
     - Compression is only recommended to help alleviate any compatibility issues with applications handling large HTTP header values
     - Because the compressed results are Base64 encoded, only `auth_stack` containers with 3 or more entries should be compressed as shorter entries could result in a longer result than the uncompressed value
-   
-- **`hash`**:
-  - A HMAC-SHA256 hash of the `container` value.
-  - **Purpose:**
-    - Ensures the integrity of the nested token.
-    - Allows the receiving service to verify that the token has not been tampered with or corrupted.
 
 - **`container`**:
   - Contains the actual nested token (JWT or JWE), which itself may have an `auth_stack` claim.
@@ -225,7 +219,6 @@ JSON:
   "iat": 1516239022,
   "auth_stack": {
     "fmt": "jwt",
-    "hash": "40ba198887c223b8bb3c65187d6108021b0482025f193235a297b9735a0cf019",
     "sid": "Organization.Services.ServiceA"
     "depth": 1,
     "container": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.iUCROHt6JHANdtzT6aOuUgOqVFRalOW20SbzRsn5SkI" 
@@ -251,7 +244,6 @@ JSON:
   "auth_stack": {
     "fmt": "jwt",
     "cmp": "g",
-    "hash": "ee88bb6753d225bce95dbbcf6337cad3f78218cfb56313648ca0443cbb6c2629",
     "sid": "Organization.Services.ServiceC",
     "depth": 3,
     "container": "H4sIAAAAAAAAA1VSyZabOBT9ouQANpX2sl0gDI7kstCEdmJIAZJsXMbF8PUtV3K6T6+kN99732uWrC2Tqjt1WUrX1Eddek8vOKxe05dUD4K9ZrvvzZKtNU9dUjrDHnqIFJtTpKe0m7rSglHmX8mfKtm+42Rnnn7FgZf21xmROHA1IYzS9edr1tYCX8UGeQVHH2k//EitHOvnMDts3HtPLRq/htuqc/nXQqCr69NJDj0YwfkUIYvs2ZeRtCgpJtS/b0+cLogzLQlcCyJb2NMZBelcrHpGNt4gIg1aZScT6qGIzjD6eyl4upXPeRc0yC+yu0UG4KHE0NaJ+Sy7kEiRBYojUy3//c9PgSw21QE/cS0OY18GoeNjHlI8NcpMQ4droete0d2Qa8MarWdiTVZ55kF71p89HeR8nDiQUd5rV2eOjcUi5+ZNUbMlfEAwDikn6A0n48b5N4pnI75gRf/U1hYcUFLneDX333EgcL/PlN1ticEAav9GCEM4Ni8kRkeV4ILaXQG97cRZfaq0uVVRnZVs8GSMMqTNWEVInz2z5ty/qgQ6PZ549ERofVSxT9WKHZ5q5WLIGuotOcGypObF2RJSn8oVKQwcfoovteffsDUIg9hzfPYNDQUX7RuL/ZCIgbt+N7Uiqex9/WMfiPUdXur/5gOXMhmffAYWoWNpjEBib0paTAWrwprOd2LnvjTDxEnGG/1/+6zNUAdGYV9uZFxf3C5uWKCspGFQ2DBXCRCIz25HTz19jhgaVWJyqMOJRdk9991F9ZKwWL4VjN0bg4TLOTEvdAixym28no3hygt/Eh/6ZcJYFUmFLT4WjIYVQIWKw1at+w1L5pxrbzpR1sLgGW91BcwIaa3xZU//7ddnknE48R4c83gnmnhoeYLdvqTGng/KA+hg4DTUjDUMiyoOT4wAQP32XjJGnD7cjSYs2l/d/XxUscGMsA8Zt5Pzj9jsNTPy4fRMmO842rbDxBRuP68MmIfD3MP+PDOSee5uH5DoR8NZSnPPO2t0ln7sFYblJWB3TkHGojpxnAA3A6pjfCVJuy2NvLFAb3me7X6dv+8+jp/NYqusee9PcN6ka35Z3r/9BQ6iSN9Z1Dav17Rsv80vxT/MX3UIiwQAAA==" 
@@ -290,7 +282,7 @@ In the above example, we're now three layers deep in our call stack (`Client` ->
 
 - **Metadata Inclusion:**
 
-  - Include necessary metadata in the `auth_stack` claim fields (`fmt`, `cmp`, `hash`).
+  - Include necessary metadata in the `auth_stack` claim fields (`fmt`, `cmp`, `sid`).
 
 ### Token Processing
 
@@ -337,11 +329,6 @@ In the above example, we're now three layers deep in our call stack (`Client` ->
   - Securely store and manage encryption keys.
   - Use key management services (e.g., AWS KMS, Azure Key Vault).
   - Implement key rotation policies.
-
-- **Token Integrity:**
-
-  - Verify the `hash` of the `container` to ensure data integrity.
-  - Use strong hashing algorithms like SHA256.
 
 - **Encryption Algorithms:**
 
