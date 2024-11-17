@@ -184,7 +184,7 @@ Implementation of compression is only recommended in order to maintain compatibi
 size of the uncompressed token increases, the added compute overhead will negate any performance offsets in transmission times. The below table shows simulated examples of compression ratios for 
 JWT tokens implementing the Matryoshka pattern at given depths:
 
-|Depth|Uncompressed Size (Encoded JWT)|Compressed Size (GZip+Base64)|Compression|
+|Depth|Uncompressed Size (Encoded JWT)|Compressed Size (GZip+Base64)|Result|
 |--|--|--|--|
 |1|529|572|1.08x
 |2|1163|1132|0.97x
